@@ -1,0 +1,193 @@
+<?php
+
+/**
+ * Implements hook_field_info().
+ */
+function currency_field_info() {
+  return array(
+    'currency_integer' => array(
+      'label' => t('Currency'),
+      'description' => t('Currency field.'),
+      'default_widget' => 'currency',
+      'default_formatter' => 'kzt_value',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function currency_field_is_empty($item, $field) {
+  if (empty($item['value']) && (string) $item['value'] !== '0') {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function currency_field_formatter_info() {
+  return array(
+    'kzt_value' => array(
+      'label' => t('Kazakh tenge'),
+      'field types' => array('currency_integer'),
+    ),
+	'usd_value' => array( 
+	'label' => t('American dollor'), 
+	'field types' => array('currency_integer'),
+	'settings'=> array(
+		'usd_value' => 150,
+			),
+			),
+	'rub_value' => array( 
+	'label' => t('Russian Rubl'), 
+	'field types' => array('currency_integer'), 
+	'settings'=> array(
+		'rub_value' => 5,
+				),
+			),
+		);
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function currency_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+$form['#attached']['js'][] = drupal_get_path('module', 'currency') . '/currency.js';
+ $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+  
+ switch ($display['type']) {
+     case 'usd_value':
+	    $element['usd_value'] = array(
+		'#type' => 'textfield',
+        '#title' => t('Usd currency value'),
+        '#field_suffix' => ' ' . t('just number format'),
+        '#default_value' => $settings['usd_value'],
+		'#element_validate' => array('element_validate_integer_positive'),
+        '#required' => TRUE,	
+		'#size' => 5,		
+      );
+      break;
+    case  'rub_value':
+        $element['rub_value'] = array(
+		'#type' => 'textfield',
+        '#title' => t('Rub currency value'),
+        '#field_suffix' => ' ' . t('just number format'),
+        '#default_value' => $settings['rub_value'],
+		'#size' => 5,
+        '#required' => TRUE,
+      );
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function currency_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+  $summary = array();
+ switch ($display ['type']) {
+  case 'usd_value':
+   $summary [] = t('Current currency: 1 dollor:').' '. $settings['usd_value']. ' tenge';
+   break;
+	case 'rub_value':
+	$summary [] = t('Current currency: @currub',  array('@currub' => $settings['rub_value']));
+	break;   
+}
+  return  implode('</br>', $summary);
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function currency_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  $settings = $display['settings'];
+  $disp = $display['type'];
+
+  switch ($disp) {
+    case 'kzt_value':
+	 foreach ($items as $delta => $item) {
+	        $output = number_format($item['value'], 0, ' ', ' ');
+		$tengesim = html_entity_decode("&#x20b8;", ENT_NOQUOTES, 'UTF-8');
+         $element[$delta] = array(
+				
+				'#markup' => '<span style="display:inline;" class="'. $disp.'"><span class="switch_dol">'  . $output . ' ' . $tengesim .'</span></span>' ,
+			
+				);
+      }
+      break;
+	    case 'usd_value':
+		foreach ($items as $delta => $item) {
+		$kzt = $item['value'];
+		if (isset($kzt)){
+		$usd = $settings['usd_value'];
+		$sum = 	$kzt / $usd;
+		$output = ceil($sum);
+		$element[$delta] = array(
+		'#markup' => '<span style="display:none;" class="'. $disp.'"><span class="switch_rub">' . $output . ' $' . '</span></span>',
+		);
+         }
+     }
+      break;
+	    case 'rub_value':
+		foreach ($items as $delta => $item) {
+		$kzt = $item['value'];
+     if(isset($kzt)) {
+		$rub = $settings['rub_value'];
+		$sum = 	$kzt / $rub;
+        $output = round($sum);
+         $element[$delta] = array(
+			'#markup' => '<span style="display:none;" class="'.$disp.'"><span class="switch_kzt">' . $output . t(' rub') . '</span></span>'
+		 );
+      }
+	  }
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function currency_field_widget_info() {
+  return array(
+    'currency' => array(
+      'label' => t('Text field'),
+      'field types' => array('currency_integer'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function currency_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $value = isset($items[$delta]['value']) ? $items[$delta]['value'] : '';
+
+  $element += array(
+    '#type' => 'textfield',
+    '#default_value' => $value,
+    // Allow two extra characters for signed values and decimal separator.
+    '#maxlength' => 5,
+
+  );
+
+  return array('value' => $element);
+}
+
+
+
+/**
+ * Implements hook_field_widget_error().
+ */
+function currency_field_widget_error($element, $error, $form, &$form_state) {
+  form_error($element['value'], $error['message']);
+}

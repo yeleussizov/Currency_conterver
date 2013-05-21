@@ -1,0 +1,8 @@
+name = Currency module
+description = Converter currency. Greated Yeleussizov S. email:yeleussizov@gmail.com
+package = Core
+version = 1.0
+core = 7.x
+
+files[] = currency.install
+files[] = currency.js
